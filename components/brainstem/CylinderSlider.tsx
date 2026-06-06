@@ -25,6 +25,125 @@ const CONTENT = [
   { title: 'Ghost Shell', subtitle: 'Ethereal presence' },
 ]
 
+function VHSEffect() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    let raf: number
+    let frame = 0
+
+    const resize = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    window.addEventListener('resize', resize)
+    resize()
+
+    const glitchBands: { y: number; h: number; dx: number; life: number; maxLife: number }[] = []
+
+    const spawnGlitch = () => {
+      const count = Math.floor(Math.random() * 3) + 1
+      for (let i = 0; i < count; i++) {
+        glitchBands.push({
+          y: Math.random() * canvas.height,
+          h: Math.random() * 12 + 2,
+          dx: (Math.random() - 0.5) * 18,
+          life: 0,
+          maxLife: Math.random() * 8 + 4,
+        })
+      }
+    }
+
+    let nextGlitch = Math.random() * 90 + 30
+
+    const animate = () => {
+      frame++
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // Scanlines
+      ctx.fillStyle = 'rgba(0,0,0,0.13)'
+      for (let y = 0; y < canvas.height; y += 3) {
+        ctx.fillRect(0, y, canvas.width, 1)
+      }
+
+      // Film grain
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+      const grainStep = 4
+      for (let i = 0; i < data.length; i += grainStep * 4) {
+        const noise = (Math.random() - 0.5) * 28
+        data[i] = Math.min(255, Math.max(0, data[i] + noise))
+        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise))
+        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise))
+      }
+      ctx.putImageData(imageData, 0, 0)
+
+      // Tracking glitch bands
+      if (frame >= nextGlitch) {
+        spawnGlitch()
+        nextGlitch = frame + Math.random() * 90 + 30
+      }
+
+      for (let i = glitchBands.length - 1; i >= 0; i--) {
+        const b = glitchBands[i]
+        const alpha = 0.55 * (1 - b.life / b.maxLife)
+        ctx.fillStyle = `rgba(255,255,255,${alpha * 0.07})`
+        ctx.fillRect(0, b.y, canvas.width, b.h)
+
+        // RGB shift on glitch band
+        ctx.save()
+        ctx.globalCompositeOperation = 'screen'
+        ctx.fillStyle = `rgba(255,0,60,${alpha * 0.18})`
+        ctx.fillRect(b.dx, b.y, canvas.width, b.h)
+        ctx.fillStyle = `rgba(0,200,255,${alpha * 0.18})`
+        ctx.fillRect(-b.dx, b.y, canvas.width, b.h)
+        ctx.restore()
+
+        b.life++
+        if (b.life >= b.maxLife) glitchBands.splice(i, 1)
+      }
+
+      // Vignette
+      const vg = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, canvas.height * 0.28,
+        canvas.width / 2, canvas.height / 2, canvas.height * 0.85
+      )
+      vg.addColorStop(0, 'rgba(0,0,0,0)')
+      vg.addColorStop(1, 'rgba(0,0,0,0.55)')
+      ctx.fillStyle = vg
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // Horizontal noise band (tape flutter)
+      if (Math.random() < 0.012) {
+        const by = Math.random() * canvas.height
+        ctx.fillStyle = 'rgba(255,255,255,0.04)'
+        ctx.fillRect(0, by, canvas.width, Math.random() * 3 + 1)
+      }
+
+      raf = requestAnimationFrame(animate)
+    }
+
+    animate()
+    return () => {
+      window.removeEventListener('resize', resize)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 pointer-events-none"
+      style={{ mixBlendMode: 'screen', opacity: 0.85, zIndex: 25 }}
+    />
+  )
+}
+
 function DotGrid({ mouse }: { mouse: React.MutableRefObject<{ x: number, y: number }> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -248,6 +367,7 @@ export default function CylinderSlider() {
       style={{ cursor: 'none', touchAction: 'pan-y' }}
     >
       <DotGrid mouse={mousePosRef} />
+      <VHSEffect />
 
       <header className="fixed top-0 left-0 w-full z-50 md:mix-blend-difference py-6 md:py-8 px-6 md:px-12 text-[#ff6600]">
         <nav className="flex items-center justify-between max-w-7xl mx-auto">

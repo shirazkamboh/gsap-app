@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef } from 'react'
 import BrainStemScene from '@/components/brainstem/BrainStemScene'
 import GlobeSection from '@/components/brainstem/GlobeSection'
 import CylinderSlider from '@/components/brainstem/CylinderSlider'
+import WhatWeBuilt from '@/components/brainstem/WhatWeBuilt'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -212,6 +213,9 @@ export default function BrainStemPage() {
           Zencoder / Cinematic Showcase v2.4
         </div>
       </div>
+
+      {/* What We've Built Section */}
+      <WhatWeBuilt />
     </main>
   )
 }
